@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  postgres_db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-vod_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis_cache:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  fastapi_app:
+    build: .
+    privileged: true
+    ports:
+      - "${APP_PORT:-13008}:13008"
+    environment:
+      - POSTGRES_HOST=postgres_db
+      - REDIS_URL=redis://redis_cache:6379/0
+      - CLOJURE_URL=http://clojure_engine:3000/api/analyze
+    env_file:
+      - .env
+    volumes:
+      - ${PATH_FILMS}:/app/media/movies
+      - ${PATH_SERIALS}:/app/media/series
+    depends_on:
+      - postgres_db
+      - redis_cache
+    restart: unless-stopped
+
+  clojure_engine:
+    image: clojure:tools-deps-alpine
+    working_dir: /app
+    command: tail -f /dev/null # Utrzymuje kontener przy życiu do czasu dodania kodu
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
