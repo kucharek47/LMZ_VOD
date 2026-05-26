@@ -118,15 +118,11 @@ def glowna_funkcja():
 
     pobieranie_plikow = input(teksty["downloads"]).strip().lower() or "false"
     uzytkownik_pg = input(teksty["pg_user"]).strip() or "postgres"
-    haslo_pg = getpass.getpass(teksty["pg_pass"]).strip()
+    haslo_pg = input(teksty["pg_pass"]).strip()
     baza_pg = input(teksty["pg_db"]).strip() or "vod_db"
-    url_redis = input(teksty["redis_url"]).strip() or "redis://redis_cache:6379/0"
 
     nazwa_admina = input(teksty["admin_user"]).strip() or "admin"
-    haslo_admina = getpass.getpass(teksty["admin_pass"]).strip()
-
-    sol = bcrypt.gensalt()
-    zahashowane_haslo = bcrypt.hashpw(haslo_admina.encode('utf-8'), sol).decode('utf-8')
+    haslo_admina = input(teksty["admin_pass"]).strip()
 
     tryb_demo = input(teksty["demo_db"]).strip().lower() or "false"
     metoda_dostarczania = input(teksty["delivery"]).strip().upper() or "STREAMING"
@@ -141,9 +137,8 @@ ENABLE_DOWNLOADS={pobieranie_plikow}
 POSTGRES_USER={uzytkownik_pg}
 POSTGRES_PASSWORD={haslo_pg}
 POSTGRES_DB={baza_pg}
-REDIS_URL={url_redis}
 ADMIN_USERNAME={nazwa_admina}
-ADMIN_PASSWORD_HASH={zahashowane_haslo}
+ADMIN_PASSWORD_HASH={haslo_admina}
 DEMO_DB={tryb_demo}
 DELIVERY_METHOD={metoda_dostarczania}
 ETS3_SUPPORT={wsparcie_ets3}

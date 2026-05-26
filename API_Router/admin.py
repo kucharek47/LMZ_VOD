@@ -14,8 +14,3 @@ async def logowanie(dane_konta: I_Log_A):
     if not stan_logowania:
         raise HTTPException(status_code=401, detail="Zle dane")
     return {"status": "zalogowano", "token": "bezpieczny_klucz"}
-
-@router.get("/profil")
-async def profil(id: int, wazny_token: str = Depends(sprawdz_token)):
-    dane_uzytkownika = pobierz_uzytkownika(id)
-    return {"dane": dane_uzytkownika}

@@ -5,3 +5,6 @@ class I_Log_A(BaseModel):
     haslo: str = Field(..., min_length=12, max_length=128)
 class I_Log(BaseModel):
     login: str = Field(..., min_length=3, max_length=32)
+class I_Reg(BaseModel):
+    login: str = Field(..., min_length=3, max_length=32)
+    avatar: str = Field(..., min_length=3, max_length=32)

@@ -1,8 +1,7 @@
-def pobierz_uzytkownika(id: int):
-    return {"id": id, "nazwa": "tester_vod"}
+import json
+from typing import Optional, List
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
-def autoryzuj_uzytkownika(dane_konta: dict):
-    return True
-
-def pobierz_wideo_info(id: int):
-    return {"id": id, "sciezka": "/dyski/wideo/film.mp4"}
+from model_DB import User, Media, WatchHistory, WatchStatus, Episode
+from redis_DB import redis_db
