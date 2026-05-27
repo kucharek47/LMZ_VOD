@@ -1,8 +1,9 @@
+import asyncio
 import os
 import enum
 from datetime import datetime, timezone
 from typing import List, Optional
-
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy import String, Boolean, ForeignKey, Integer, Float, DateTime, Text, Table, Column
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -13,7 +14,7 @@ load_dotenv()
 uzytkownik_bazy = os.getenv("POSTGRES_USER", "postgres")
 haslo_bazy = os.getenv("POSTGRES_PASSWORD", "postgres")
 nazwa_bazy = os.getenv("POSTGRES_DB", "vod_db")
-host_bazy = os.getenv("POSTGRES_HOST", "postgres_db")
+host_bazy = os.getenv("POSTGRES_HOST", "localhost")
 port_bazy = os.getenv("POSTGRES_PORT", "5432")
 
 url_bazy_danych = f"postgresql+asyncpg://{uzytkownik_bazy}:{haslo_bazy}@{host_bazy}:{port_bazy}/{nazwa_bazy}"
@@ -54,7 +55,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     avatar_path: Mapped[str] = mapped_column(String(255), default="default.png")
 
@@ -158,3 +159,19 @@ class UnmatchedMedia(Base):
     file_path: Mapped[str] = mapped_column(String(512), unique=True)
     detected_title: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+async def create_tables():
+    url_bazy_danych_async = f"postgresql+asyncpg://{uzytkownik_bazy}:{haslo_bazy}@{host_bazy}:{port_bazy}/{nazwa_bazy}"
+    print(url_bazy_danych_async)
+
+    silnik_bazy_async = create_async_engine(url_bazy_danych_async, echo=False)
+
+    async with silnik_bazy_async.begin() as polaczenie:
+        await polaczenie.run_sync(Base.metadata.create_all)
+
+    await silnik_bazy_async.dispose()
+
+
+if __name__ == '__main__':
+    asyncio.run(create_tables())

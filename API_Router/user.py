@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from API_Router.check import sprawdz_token
 from API_Router.request_DB import autoryzuj_uzytkownika, pobierz_uzytkownika
 from API_Router.interfaces import I_Log
+import os
 
 router = APIRouter(
     prefix="/user",
@@ -28,4 +29,7 @@ async def profil(id: int, wazny_token: str = Depends(sprawdz_token)):
     return {"dane": dane_uzytkownika}
 @router.get("/avatars")
 async def avatars():
-    return {"name": "path"}
+    slownik = {}
+    for x in os.listdir("img/avatar"):
+        slownik[x.split(".")[0]] = f"/img/avatar/{x}"
+    return slownik

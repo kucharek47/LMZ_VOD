@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from API_Router.check import sprawdz_token
 from API_Router.request_DB import pobierz_wideo_info
+from os import getenv
 
 router = APIRouter(
     prefix="/wideo",
@@ -17,3 +18,6 @@ async def odtwarzaj_wideo(id: int, wazny_token: str = Depends(sprawdz_token)):
     dane_pliku = pobierz_wideo_info(id)
     url = f"https://cdn.serwer.pl/media/{dane_pliku['id']}"
     return {"url": url}
+@router.get("/zezwolenie_na_pobieranie")
+async def zezwolenie_na_pobieranie(wazny_token: str = Depends(sprawdz_token)):
+    return getenv("ENABLE_DOWNLOADS", "false") == "true"
