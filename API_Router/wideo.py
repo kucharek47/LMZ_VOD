@@ -12,6 +12,7 @@ from API_Router.request_DB import (
 )
 from API_Router.interfaces import I_Ostatnio_Ogladane
 from typing import List, Optional
+import aiofiles
 
 router = APIRouter(
     prefix="/wideo",
@@ -79,13 +80,13 @@ async def stream_wideo(request: Request, id_wideo: int, czy_serial: bool = False
         "Content-Type": "video/mp4",
     }
 
-    def generator_wideo():
-        with open(sciezka, "rb") as plik:
-            plik.seek(bajt_start)
+    async def generator_wideo():
+        async with aiofiles.open(sciezka, "rb") as plik:
+            await plik.seek(bajt_start)
             przeczytane = 0
             while przeczytane < rozmiar_chunku:
                 do_odczytu = min(1024 * 1024, rozmiar_chunku - przeczytane)
-                chunk = plik.read(do_odczytu)
+                chunk = await plik.read(do_odczytu)
                 if not chunk:
                     break
                 przeczytane += len(chunk)
