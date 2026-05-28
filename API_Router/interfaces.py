@@ -1,11 +1,60 @@
-from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import date
+from datetime import datetime
+from pydantic import BaseModel, Field, ConfigDict
 
 class I_Log(BaseModel):
-    login: str = Field(..., min_length=3, max_length=32)
+    login: str = Field(..., min_length=3, max_length=50)
+
 class I_Reg(BaseModel):
-    login: str = Field(..., min_length=3, max_length=32)
-    avatar: str = Field(..., min_length=3, max_length=32)
-class I_konta(BaseModel):
-    id: int = Field(..., ge=1, le=10)
-    path_avatar: str = Field(..., min_length=10, max_length=64)
-    name: str = Field(..., min_length=3, max_length=32)
+    login: str = Field(..., min_length=3, max_length=50)
+    path_avatar: Optional[str] = Field(default="default.png", max_length=255)
+
+class I_Konta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int = Field(..., ge=1)
+    path_avatar: str = Field(..., max_length=255)
+    nazwa: str = Field(..., min_length=3, max_length=50)
+
+class I_Film(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    release_date: Optional[date] = None
+    poster_path: Optional[str] = None
+    trailer_url: Optional[str] = None
+    file_path: Optional[str] = None
+    genres: List[str]
+
+class I_Serial(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    poster_path: Optional[str] = None
+    genres: List[str]
+    seasons_count: int
+
+class I_Szukane_Media(BaseModel):
+    id: int
+    media_type: str
+    title: str
+    description: Optional[str] = None
+    poster_path: Optional[str] = None
+    file_path: Optional[str] = None
+    genres: List[str]
+class I_Refresh(BaseModel):
+    refresh_token: str
+class I_JWT(BaseModel):
+    access_token: str
+    expires_in: int
+    refresh_token: str
+    id: str
+class I_Ostatnio_Ogladane(BaseModel):
+    media_id: int
+    tytul: str
+    plakat_url: Optional[str] = None
+    typ_media: str
+    obejrzany_czas: float
+    data_aktualizacji: datetime
+    numer_sezonu: Optional[int] = None
+    numer_odcinka: Optional[int] = None

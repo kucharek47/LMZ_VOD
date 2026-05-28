@@ -1,8 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
-from API_Router.check import sprawdz_token
-from API_Router.request_DB import autoryzuj_uzytkownika, pobierz_uzytkownika
-from API_Router.interfaces import I_Log
+import jwt
 import os
+from API_Router.check import sprawdz_token
+from API_Router.request_DB import autoryzuj_uzytkownika, generuj_tokeny_jwt
+from API_Router.interfaces import I_Log
+from API_Router.interfaces import I_Refresh
+
+sekretny_klucz = os.getenv("KEY_S", "tymczasowy_sekretny_klucz")
+algorytm_jwt = "HS256"
 
 router = APIRouter(
     prefix="/user",
@@ -11,25 +16,32 @@ router = APIRouter(
 
 @router.post("/login")
 async def logowanie(dane_konta: I_Log):
-    stan_logowania = autoryzuj_uzytkownika(dane_konta)
-    if not stan_logowania:
+    tokeny = await autoryzuj_uzytkownika(dane_konta.nazwa, dane_konta.haslo)
+    if not tokeny:
         raise HTTPException(status_code=401, detail="Zle dane")
-    return {"status": "zalogowano", "token": "bezpieczny_klucz"}
 
-@router.post("/register")
-async def logowanie(dane_konta: I_Log):
-    stan_logowania = autoryzuj_uzytkownika(dane_konta)
-    if not stan_logowania:
-        raise HTTPException(status_code=401, detail="Zle dane")
-    return {"status": "zalogowano", "token": "bezpieczny_klucz"}
+    access_token, refresh_token = tokeny
+    return {"status": "zalogowano", "access_token": access_token, "refresh_token": refresh_token}
 
-@router.get("/profil")
-async def profil(id: int, wazny_token: str = Depends(sprawdz_token)):
-    dane_uzytkownika = pobierz_uzytkownika(id)
-    return {"dane": dane_uzytkownika}
-@router.get("/avatars")
-async def avatars():
-    slownik = {}
-    for x in os.listdir("img/avatar"):
-        slownik[x.split(".")[0]] = f"/img/avatar/{x}"
-    return slownik
+
+@router.post("/refresh")
+async def odswiez_token(dane: I_Refresh):
+    try:
+        payload = jwt.decode(dane.refresh_token, sekretny_klucz, algorithms=[algorytm_jwt])
+        id_uzytkownika = int(payload.get("sub"))
+
+        tokeny = await generuj_tokeny_jwt(id_uzytkownika)
+        if not tokeny:
+            raise HTTPException(status_code=401, detail="Blad generowania tokenow")
+
+        return {"access_token": tokeny[0], "refresh_token": tokeny[1]}
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token wygasl")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Nieprawidlowy token")
+
+
+@router.get("/login_test")
+async def login_test(dane_uzytkownika: dict = Depends(sprawdz_token)):
+    return {"status": "sukces", "id_uzytkownika": dane_uzytkownika.get("sub")}

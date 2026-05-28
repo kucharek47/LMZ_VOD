@@ -4,6 +4,8 @@ import bcrypt
 from argon2 import PasswordHasher
 import model_DB
 from model_DB import host_bazy
+import secrets
+import string
 
 slownik_tekstow = {
     "en": {
@@ -163,6 +165,7 @@ ADMIN_USERNAME={nazwa_admina}
 ADMIN_PASSWORD_HASH={hash_hasla}
 DELIVERY_METHOD={metoda_dostarczania}
 ETS3_SUPPORT={wsparcie_ets3}
+KEY_S={"".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))}
 """
 
     with open(".env", "w", encoding="utf-8") as plik_env:
