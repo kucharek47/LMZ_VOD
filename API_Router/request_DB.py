@@ -14,17 +14,18 @@ algorytm_jwt = "HS256"
 async def loguj_przez_id(id_uzytkownika: int) -> Optional[Tuple[str, str]]:
     return await generuj_tokeny_jwt(id_uzytkownika)
 
-async def autoryzuj_uzytkownika(nazwa: str, haslo: str) -> Optional[Tuple[str, str]]:
+async def autoryzuj_uzytkownika(nazwa: str, haslo: Optional[str] = None) -> Optional[Tuple[str, str]]:
     async with tworca_sesji() as sesja:
         zapytanie = select(Uzytkownik).where(Uzytkownik.nazwa_uzytkownika == nazwa)
         wynik = await sesja.execute(zapytanie)
         uzytkownik = wynik.scalar_one_or_none()
 
-        if not uzytkownik or not uzytkownik.haslo_hash:
+        if not uzytkownik:
             return None
 
-        if uzytkownik.haslo_hash != haslo:
-            return None
+        if uzytkownik.czy_admin:
+            if not haslo or uzytkownik.haslo_hash != haslo:
+                return None
 
         return await generuj_tokeny_jwt(uzytkownik.id)
 

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 class I_Log(BaseModel):
     login: str = Field(..., min_length=3, max_length=50)
+    haslo: Optional[str] = None
 
 class I_Reg(BaseModel):
     login: str = Field(..., min_length=3, max_length=50)
