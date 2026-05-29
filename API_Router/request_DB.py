@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from model_DB import Uzytkownik, Media, Gatunek, Film, Serial, tworca_sesji, HistoriaOgladania, Odcinek
-from interfaces import I_Film, I_Serial, I_Konta, I_Szukane_Media, I_Ostatnio_Ogladane
+from API_Router.interfaces import I_Film, I_Serial, I_Konta, I_Szukane_Media, I_Ostatnio_Ogladane
 
 sekretny_klucz = os.getenv("KEY_S", "tymczasowy_sekretny_klucz")
 algorytm_jwt = "HS256"
@@ -33,6 +33,19 @@ async def pobierz_uzytkownika_db(id_uzytkownika: int):
     async with tworca_sesji() as sesja:
         uzytkownik = await sesja.get(Uzytkownik, id_uzytkownika)
         return uzytkownik
+async def pobierz_uzytkownikow_nie_adminow() -> List[I_Konta]:
+    async with tworca_sesji() as sesja:
+        zapytanie = select(Uzytkownik).where(Uzytkownik.czy_admin == False)
+        wynik = await sesja.execute(zapytanie)
+        uzytkownicy = wynik.scalars().all()
+
+        return [
+            I_Konta(
+                id=u.id,
+                path_avatar=u.sciezka_awatar,
+                nazwa=u.nazwa_uzytkownika
+            ) for u in uzytkownicy
+        ]
 
 async def generuj_tokeny_jwt(id_uzytkownika: int) -> Optional[Tuple[str, str]]:
     teraz = datetime.now(timezone.utc)

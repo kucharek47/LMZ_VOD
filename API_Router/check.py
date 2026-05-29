@@ -14,12 +14,21 @@ def czy_token_wazny(token: str) -> bool:
     except jwt.PyJWTError:
         return False
 
-async def sprawdz_token(credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):
-    token = credentials.credentials
+
+async def sprawdz_token(request: Request):
+    token = request.cookies.get("access_token")
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Brak autoryzacji")
+
+    czarna_lista = await redis_db.get(f"blacklist_{token}")
+    if czarna_lista:
+        raise HTTPException(status_code=401, detail="Token uniewazniony")
+
     try:
         payload = jwt.decode(token, sekretny_klucz, algorithms=[algorytm_jwt])
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token wygasl")
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=403, detail="Odmowa dostepu")
+        raise HTTPException(status_code=401, detail="Nieprawidlowy token")

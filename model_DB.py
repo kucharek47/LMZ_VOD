@@ -226,7 +226,7 @@ class NierozpoznaneMedia(Baza):
     data_wykrycia: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
-async def utworz_tabele():
+async def utworz_tabele(): #TODO uzyj Alembic
     async with silnik_bazy.begin() as polaczenie:
         await polaczenie.run_sync(Baza.metadata.create_all)
     await silnik_bazy.dispose()
