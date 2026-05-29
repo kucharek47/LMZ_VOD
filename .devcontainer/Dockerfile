@@ -11,4 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN addgroup --system grupa_app && adduser --system --group uzytkownik_app
+RUN chown -R uzytkownik_app:grupa_app /app
+USER uzytkownik_app
+
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "13008"]
