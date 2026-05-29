@@ -1,29 +1,19 @@
-from fastapi import HTTPException, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Request, HTTPException
 import jwt
 import os
+from API_Router.redis_DB import baza_redis
 
 sekretny_klucz = os.getenv("KEY_S", "tymczasowy_sekretny_klucz")
 algorytm_jwt = "HS256"
-bearer_scheme = HTTPBearer()
-
-def czy_token_wazny(token: str) -> bool:
-    try:
-        jwt.decode(token, sekretny_klucz, algorithms=[algorytm_jwt])
-        return True
-    except jwt.PyJWTError:
-        return False
-
 
 async def sprawdz_token(request: Request):
     token = request.cookies.get("access_token")
-
     if not token:
-        raise HTTPException(status_code=401, detail="Brak autoryzacji")
+        raise HTTPException(status_code=401, detail="Brak tokenu")
 
-    czarna_lista = await redis_db.get(f"blacklist_{token}")
-    if czarna_lista:
-        raise HTTPException(status_code=401, detail="Token uniewazniony")
+    czy_zablokowany = await baza_redis.get(f"blacklist_{token}")
+    if czy_zablokowany:
+        raise HTTPException(status_code=401, detail="Token wygasl")
 
     try:
         payload = jwt.decode(token, sekretny_klucz, algorithms=[algorytm_jwt])
@@ -31,4 +21,4 @@ async def sprawdz_token(request: Request):
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token wygasl")
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Nieprawidlowy token")
+        raise HTTPException(status_code=401, detail="Zly token")

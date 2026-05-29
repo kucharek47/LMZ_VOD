@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.encoders import jsonable_encoder
 from API_Router.check import sprawdz_token
-from API_Router.redis_DB import redis_db
+from API_Router.redis_DB import baza_redis
 from API_Router.request_DB import (
     pobierz_ostatnio_ogladane, pobierz_filmy, pobierz_seriale,
     pobierz_kategorie, pobierz_sciezke_wideo
@@ -114,11 +114,19 @@ async def seriale_list(limit: int, dane_uzytkownika: dict = Depends(sprawdz_toke
 @router.get("/kategoria_list")
 async def kategoria_list(dane_uzytkownika: dict = Depends(sprawdz_token)):
     klucz_cache = "kategorie_list"
-    dane_cache = await redis_db.get(klucz_cache)
 
-    if dane_cache:
-        return json.loads(dane_cache)
+    try:
+        dane_cache = await baza_redis.get(klucz_cache)
+        if dane_cache:
+            return json.loads(dane_cache)
+    except Exception:
+        pass
 
     wynik = await pobierz_kategorie()
-    await redis_db.setex(klucz_cache, 3600, json.dumps(jsonable_encoder(wynik)))
+
+    try:
+        await baza_redis.setex(klucz_cache, 3600, json.dumps(jsonable_encoder(wynik)))
+    except Exception:
+        pass
+
     return wynik

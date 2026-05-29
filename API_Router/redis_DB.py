@@ -1,10 +1,11 @@
-import os
 import redis.asyncio as redis
-from dotenv import load_dotenv
+import os
 
-load_dotenv()
+adres_redis = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 
-redis_host = os.getenv("REDIS_HOST", "localhost")
-redis_port = int(os.getenv("REDIS_PORT", 6379))
-
-redis_db = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+baza_redis = redis.from_url(
+    adres_redis,
+    encoding="utf-8",
+    decode_responses=True,
+    socket_timeout=2.0
+)

@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 import jwt
 import os
+import json
 from datetime import datetime, timezone
 from API_Router.check import sprawdz_token
-from API_Router.request_DB import autoryzuj_uzytkownika, generuj_tokeny_jwt
-from API_Router.interfaces import I_Log, I_Refresh
-from API_Router.redis_DB import redis_db
+from API_Router.request_DB import autoryzuj_uzytkownika, generuj_tokeny_jwt, pobierz_uzytkownikow_nie_adminow
+from API_Router.interfaces import I_Log
+from API_Router.redis_DB import baza_redis
+from fastapi.encoders import jsonable_encoder
 
 sekretny_klucz = os.getenv("KEY_S", "tymczasowy_sekretny_klucz")
 algorytm_jwt = "HS256"
@@ -25,6 +27,14 @@ async def logowanie(dane_konta: I_Log, odpowiedz_serwera: Response):
     access_token, refresh_token = tokeny
 
     odpowiedz_serwera.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=45 * 60
+    )
+    odpowiedz_serwera.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
@@ -33,7 +43,7 @@ async def logowanie(dane_konta: I_Log, odpowiedz_serwera: Response):
         max_age=7 * 24 * 60 * 60
     )
 
-    return {"status": "zalogowano", "access_token": access_token}
+    return {"status": "zalogowano"}
 
 
 @router.post("/logout")
@@ -42,7 +52,7 @@ async def wyloguj(request: Request, response: Response, dane_uzytkownika: dict =
     if token:
         czas_wygasniecia = dane_uzytkownika.get("exp", 0) - int(datetime.now(timezone.utc).timestamp())
         if czas_wygasniecia > 0:
-            await redis_db.setex(f"blacklist_{token}", czas_wygasniecia, "true")
+            await baza_redis.setex(f"blacklist_{token}", czas_wygasniecia, "true")
 
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
@@ -78,3 +88,24 @@ async def odswiez_token(request: Request, response: Response):
 @router.get("/check")
 async def sprawdz_autoryzacje(dane_uzytkownika: dict = Depends(sprawdz_token)):
     return {"status": "ok"}
+
+
+@router.get("/all")
+async def pobierz_wszystkich():
+    klucz_cache = "uzytkownicy_nie_admini"
+
+    try:
+        dane_cache = await baza_redis.get(klucz_cache)
+        if dane_cache:
+            return json.loads(dane_cache)
+    except Exception:
+        pass
+
+    lista_uzytkownikow = await pobierz_uzytkownikow_nie_adminow()
+
+    try:
+        await baza_redis.setex(klucz_cache, 300, json.dumps(jsonable_encoder(lista_uzytkownikow)))
+    except Exception:
+        pass
+
+    return lista_uzytkownikow
