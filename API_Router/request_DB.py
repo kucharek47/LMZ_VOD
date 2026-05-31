@@ -1,11 +1,13 @@
 import jwt
 import os
+import asyncio
+import yt_dlp
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
-from model_DB import Uzytkownik, Media, Gatunek, Film, Serial, tworca_sesji, HistoriaOgladania, Odcinek
-from API_Router.interfaces import I_Film, I_Serial, I_Konta, I_Szukane_Media, I_Ostatnio_Ogladane
+from model_DB import Uzytkownik, Media, Gatunek, Film, Serial, tworca_sesji, HistoriaOgladania, Odcinek, StatusOgladania
+from API_Router.interfaces import I_Film, I_Serial, I_Konta, I_Szukane_Media, I_Ostatnio_Ogladane, I_Postep
 
 sekretny_klucz = os.getenv("KEY_S", "tymczasowy_sekretny_klucz")
 algorytm_jwt = "HS256"
@@ -13,6 +15,7 @@ algorytm_jwt = "HS256"
 
 async def loguj_przez_id(id_uzytkownika: int) -> Optional[Tuple[str, str]]:
     return await generuj_tokeny_jwt(id_uzytkownika)
+
 
 async def autoryzuj_uzytkownika(nazwa: str, haslo: Optional[str] = None) -> Optional[Tuple[str, str]]:
     async with tworca_sesji() as sesja:
@@ -29,10 +32,13 @@ async def autoryzuj_uzytkownika(nazwa: str, haslo: Optional[str] = None) -> Opti
 
         return await generuj_tokeny_jwt(uzytkownik.id)
 
+
 async def pobierz_uzytkownika_db(id_uzytkownika: int):
     async with tworca_sesji() as sesja:
         uzytkownik = await sesja.get(Uzytkownik, id_uzytkownika)
         return uzytkownik
+
+
 async def pobierz_uzytkownikow_nie_adminow() -> List[I_Konta]:
     async with tworca_sesji() as sesja:
         zapytanie = select(Uzytkownik).where(Uzytkownik.czy_admin == False)
@@ -46,6 +52,7 @@ async def pobierz_uzytkownikow_nie_adminow() -> List[I_Konta]:
                 nazwa=u.nazwa_uzytkownika
             ) for u in uzytkownicy
         ]
+
 
 async def generuj_tokeny_jwt(id_uzytkownika: int) -> Optional[Tuple[str, str]]:
     teraz = datetime.now(timezone.utc)
@@ -94,11 +101,13 @@ async def pobierz_filmy(limit_wynikow: int, nazwa_gatunku: Optional[str] = None)
                 release_date=f.data_premiery.date() if f.data_premiery else None,
                 poster_path=f.plakat_url,
                 trailer_url=f.trailer_url,
+                ocena=f.ocena_srednia,
+                liczba_glosow=f.ocena_glosy,
+                czas_trwania=f.czas_trwania,
                 file_path=f.sciezka_pliku,
                 genres=[g.nazwa for g in f.gatunki]
             ) for f in filmy
         ]
-
 
 async def pobierz_seriale(limit_wynikow: int) -> List[I_Serial]:
     async with tworca_sesji() as sesja:
@@ -108,13 +117,17 @@ async def pobierz_seriale(limit_wynikow: int) -> List[I_Serial]:
 
         wynik = await sesja.execute(zapytanie)
         seriale = wynik.scalars().all()
-
         return [
             I_Serial(
                 id=s.id,
                 title=s.tytul,
                 description=s.opis,
+                release_date=s.data_premiery.date() if s.data_premiery else None,
                 poster_path=s.plakat_url,
+                trailer_url=s.trailer_url,
+                ocena=s.ocena_srednia,
+                liczba_glosow=s.ocena_glosy,
+                czas_trwania=s.czas_trwania,
                 genres=[g.nazwa for g in s.gatunki],
                 seasons_count=len(set(o.numer_sezonu for o in s.odcinki)) if s.odcinki else 0
             ) for s in seriale
@@ -215,3 +228,60 @@ async def pobierz_sciezke_wideo(id_wideo: int, czy_serial: bool = False) -> Opti
 
         wynik = await sesja.execute(zapytanie)
         return wynik.scalar_one_or_none()
+async def aktualizuj_postep(id_uzytkownika: int, dane_postepu: I_Postep) -> None:
+    async with tworca_sesji() as sesja:
+        zapytanie_media = select(Media.czas_trwania).where(Media.id == dane_postepu.media_id)
+        wynik_media = await sesja.execute(zapytanie_media)
+        czas_trwania_minuty = wynik_media.scalar_one_or_none()
+
+        czas_calkowity = (czas_trwania_minuty * 60) if czas_trwania_minuty else 0
+
+        zapytanie_historia = select(HistoriaOgladania).where(
+            HistoriaOgladania.uzytkownik_id == id_uzytkownika,
+            HistoriaOgladania.media_id == dane_postepu.media_id,
+            HistoriaOgladania.odcinek_id == dane_postepu.odcinek_id
+        )
+        wynik_historia = await sesja.execute(zapytanie_historia)
+        historia = wynik_historia.scalar_one_or_none()
+
+        if czas_calkowity > 0:
+            procent = (dane_postepu.aktualny_czas / czas_calkowity) * 100
+        else:
+            procent = 50.0
+
+        if procent < 2.0:
+            if historia:
+                await sesja.delete(historia)
+                await sesja.commit()
+            return
+
+        status = StatusOgladania.ZAKONCZONE if procent >= 80.0 else StatusOgladania.W_TRAKCIE
+
+        if historia:
+            historia.obejrzany_czas = dane_postepu.aktualny_czas
+            historia.status = status
+        else:
+            nowa_historia = HistoriaOgladania(
+                uzytkownik_id=id_uzytkownika,
+                media_id=dane_postepu.media_id,
+                odcinek_id=dane_postepu.odcinek_id,
+                obejrzany_czas=dane_postepu.aktualny_czas,
+                status=status
+            )
+            sesja.add(nowa_historia)
+
+        await sesja.commit()
+
+async def pobierz_czas_wideo(id_uzytkownika: int, media_id: int, odcinek_id: Optional[int] = None) -> float:
+    async with tworca_sesji() as sesja:
+        zapytanie = select(HistoriaOgladania).where(
+            HistoriaOgladania.uzytkownik_id == id_uzytkownika,
+            HistoriaOgladania.media_id == media_id,
+            HistoriaOgladania.odcinek_id == odcinek_id
+        )
+        wynik = await sesja.execute(zapytanie)
+        historia = wynik.scalar_one_or_none()
+
+        if historia and historia.status == StatusOgladania.W_TRAKCIE:
+            return historia.obejrzany_czas
+        return 0.0

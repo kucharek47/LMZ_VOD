@@ -17,7 +17,6 @@ router = APIRouter(
     tags=["Logowanie, rejestracja"]
 )
 
-
 @router.post("/login")
 async def logowanie(dane_konta: I_Log, odpowiedz_serwera: Response):
     tokeny = await autoryzuj_uzytkownika(dane_konta.login, dane_konta.haslo)
@@ -30,7 +29,7 @@ async def logowanie(dane_konta: I_Log, odpowiedz_serwera: Response):
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True,
+        secure=False,
         samesite="lax",
         max_age=45 * 60
     )
@@ -38,13 +37,12 @@ async def logowanie(dane_konta: I_Log, odpowiedz_serwera: Response):
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,
+        secure=False,
         samesite="lax",
         max_age=7 * 24 * 60 * 60
     )
 
     return {"status": "zalogowano"}
-
 
 @router.post("/logout")
 async def wyloguj(request: Request, response: Response, dane_uzytkownika: dict = Depends(sprawdz_token)):
@@ -57,7 +55,6 @@ async def wyloguj(request: Request, response: Response, dane_uzytkownika: dict =
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
     return {"status": "wylogowano"}
-
 
 @router.post("/refresh")
 async def odswiez_token(request: Request, response: Response):
@@ -73,9 +70,8 @@ async def odswiez_token(request: Request, response: Response):
         if not tokeny:
             raise HTTPException(status_code=401, detail="Blad generowania tokenow")
 
-        response.set_cookie(key="access_token", value=tokeny[0], httponly=True, samesite="lax", max_age=45 * 60)
-        response.set_cookie(key="refresh_token", value=tokeny[1], httponly=True, samesite="lax",
-                            max_age=7 * 24 * 60 * 60)
+        response.set_cookie(key="access_token", value=tokeny[0], httponly=True, secure=False, samesite="lax", max_age=45 * 60)
+        response.set_cookie(key="refresh_token", value=tokeny[1], httponly=True, secure=False, samesite="lax", max_age=7 * 24 * 60 * 60)
 
         return {"status": "odswiezono"}
 
@@ -84,11 +80,9 @@ async def odswiez_token(request: Request, response: Response):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Nieprawidlowy token")
 
-
 @router.get("/check")
 async def sprawdz_autoryzacje(dane_uzytkownika: dict = Depends(sprawdz_token)):
     return {"status": "ok"}
-
 
 @router.get("/all")
 async def pobierz_wszystkich():

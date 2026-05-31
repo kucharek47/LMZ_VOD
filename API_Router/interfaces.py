@@ -25,13 +25,21 @@ class I_Film(BaseModel):
     poster_path: Optional[str] = None
     trailer_url: Optional[str] = None
     file_path: Optional[str] = None
+    ocena: Optional[float] = None
+    liczba_glosow: Optional[int] = None
+    czas_trwania: Optional[int] = None
     genres: List[str]
 
 class I_Serial(BaseModel):
     id: int
     title: str
     description: Optional[str] = None
+    release_date: Optional[date] = None
     poster_path: Optional[str] = None
+    trailer_url: Optional[str] = None
+    ocena: Optional[float] = None
+    liczba_glosow: Optional[int] = None
+    czas_trwania: Optional[int] = None
     genres: List[str]
     seasons_count: int
 
@@ -43,13 +51,16 @@ class I_Szukane_Media(BaseModel):
     poster_path: Optional[str] = None
     file_path: Optional[str] = None
     genres: List[str]
+
 class I_Refresh(BaseModel):
     refresh_token: str
+
 class I_JWT(BaseModel):
     access_token: str
     expires_in: int
     refresh_token: str
     id: str
+
 class I_Ostatnio_Ogladane(BaseModel):
     media_id: int
     tytul: str
@@ -59,3 +70,10 @@ class I_Ostatnio_Ogladane(BaseModel):
     data_aktualizacji: datetime
     numer_sezonu: Optional[int] = None
     numer_odcinka: Optional[int] = None
+class I_Postep(BaseModel):
+    media_id: int
+    odcinek_id: Optional[int] = None
+    aktualny_czas: float
+
+class I_WideoCzas(BaseModel):
+    obejrzany_czas: float

@@ -98,6 +98,7 @@ class Media(Baza):
     data_premiery: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     plakat_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     trailer_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    trailer_src: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     ocena_srednia: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     ocena_glosy: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     czas_trwania: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
