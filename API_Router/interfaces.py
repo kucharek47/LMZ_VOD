@@ -74,6 +74,21 @@ class I_Postep(BaseModel):
     media_id: int
     odcinek_id: Optional[int] = None
     aktualny_czas: float
+    calkowity_czas: float
+
+class I_Zmiana_Statusu(BaseModel):
+    media_id: int
+    numer_sezonu: Optional[int] = None
+    numer_odcinka: Optional[int] = None
+    czy_obejrzane: bool
+
+class I_Nastepny_Wideo(BaseModel):
+    id: int
+    sciezka_pliku: str
+    odcinek_id: Optional[int] = None
+    numer_sezonu: Optional[int] = None
+    numer_odcinka: Optional[int] = None
+    zapisany_czas: float
 
 class I_WideoCzas(BaseModel):
     obejrzany_czas: float

@@ -7,7 +7,8 @@ from typing import List, Optional, Tuple
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from model_DB import Uzytkownik, Media, Gatunek, Film, Serial, tworca_sesji, HistoriaOgladania, Odcinek, StatusOgladania
-from API_Router.interfaces import I_Film, I_Serial, I_Konta, I_Szukane_Media, I_Ostatnio_Ogladane, I_Postep
+from API_Router.interfaces import I_Film, I_Serial, I_Konta, I_Szukane_Media, I_Ostatnio_Ogladane, I_Postep, \
+    I_Zmiana_Statusu, I_Nastepny_Wideo
 
 sekretny_klucz = os.getenv("KEY_S", "tymczasowy_sekretny_klucz")
 algorytm_jwt = "HS256"
@@ -228,14 +229,10 @@ async def pobierz_sciezke_wideo(id_wideo: int, czy_serial: bool = False) -> Opti
 
         wynik = await sesja.execute(zapytanie)
         return wynik.scalar_one_or_none()
+
+
 async def aktualizuj_postep(id_uzytkownika: int, dane_postepu: I_Postep) -> None:
     async with tworca_sesji() as sesja:
-        zapytanie_media = select(Media.czas_trwania).where(Media.id == dane_postepu.media_id)
-        wynik_media = await sesja.execute(zapytanie_media)
-        czas_trwania_minuty = wynik_media.scalar_one_or_none()
-
-        czas_calkowity = (czas_trwania_minuty * 60) if czas_trwania_minuty else 0
-
         zapytanie_historia = select(HistoriaOgladania).where(
             HistoriaOgladania.uzytkownik_id == id_uzytkownika,
             HistoriaOgladania.media_id == dane_postepu.media_id,
@@ -244,10 +241,10 @@ async def aktualizuj_postep(id_uzytkownika: int, dane_postepu: I_Postep) -> None
         wynik_historia = await sesja.execute(zapytanie_historia)
         historia = wynik_historia.scalar_one_or_none()
 
-        if czas_calkowity > 0:
-            procent = (dane_postepu.aktualny_czas / czas_calkowity) * 100
+        if dane_postepu.calkowity_czas > 0:
+            procent = (dane_postepu.aktualny_czas / dane_postepu.calkowity_czas) * 100
         else:
-            procent = 50.0
+            procent = 5.0
 
         if procent < 2.0:
             if historia:
@@ -271,6 +268,127 @@ async def aktualizuj_postep(id_uzytkownika: int, dane_postepu: I_Postep) -> None
             sesja.add(nowa_historia)
 
         await sesja.commit()
+
+
+async def reczna_zmiana_statusu(id_uzytkownika: int, dane_zmiany: I_Zmiana_Statusu) -> None:
+    async with tworca_sesji() as sesja:
+        zapytanie_odcinki = select(Odcinek).where(Odcinek.serial_id == dane_zmiany.media_id)
+
+        if dane_zmiany.numer_sezonu is not None:
+            zapytanie_odcinki = zapytanie_odcinki.where(Odcinek.numer_sezonu == dane_zmiany.numer_sezonu)
+            if dane_zmiany.numer_odcinka is not None:
+                zapytanie_odcinki = zapytanie_odcinki.where(Odcinek.numer_odcinka <= dane_zmiany.numer_odcinka)
+
+        wynik_odcinki = await sesja.execute(zapytanie_odcinki)
+        odcinki = wynik_odcinki.scalars().all()
+
+        zapytanie_historia = select(HistoriaOgladania).where(
+            HistoriaOgladania.uzytkownik_id == id_uzytkownika,
+            HistoriaOgladania.media_id == dane_zmiany.media_id
+        )
+        wynik_historia = await sesja.execute(zapytanie_historia)
+        historia_istniejaca = {h.odcinek_id: h for h in wynik_historia.scalars().all()}
+
+        status_docelowy = StatusOgladania.ZAKONCZONE if dane_zmiany.czy_obejrzane else StatusOgladania.W_TRAKCIE
+
+        for odcinek in odcinki:
+            if odcinek.id in historia_istniejaca:
+                if not dane_zmiany.czy_obejrzane:
+                    await sesja.delete(historia_istniejaca[odcinek.id])
+                else:
+                    historia_istniejaca[odcinek.id].status = status_docelowy
+            elif dane_zmiany.czy_obejrzane:
+                nowa_historia = HistoriaOgladania(
+                    uzytkownik_id=id_uzytkownika,
+                    media_id=dane_zmiany.media_id,
+                    odcinek_id=odcinek.id,
+                    obejrzany_czas=0.0,
+                    status=status_docelowy
+                )
+                sesja.add(nowa_historia)
+
+        if not odcinki and dane_zmiany.numer_sezonu is None:
+            zapytanie_historia_film = select(HistoriaOgladania).where(
+                HistoriaOgladania.uzytkownik_id == id_uzytkownika,
+                HistoriaOgladania.media_id == dane_zmiany.media_id
+            )
+            wynik_historia_film = await sesja.execute(zapytanie_historia_film)
+            historia_film = wynik_historia_film.scalar_one_or_none()
+
+            if historia_film:
+                if not dane_zmiany.czy_obejrzane:
+                    await sesja.delete(historia_film)
+                else:
+                    historia_film.status = status_docelowy
+            elif dane_zmiany.czy_obejrzane:
+                nowa_historia = HistoriaOgladania(
+                    uzytkownik_id=id_uzytkownika,
+                    media_id=dane_zmiany.media_id,
+                    obejrzany_czas=0.0,
+                    status=status_docelowy
+                )
+                sesja.add(nowa_historia)
+
+        await sesja.commit()
+
+
+async def pobierz_nastepny_film(id_uzytkownika: int, aktualne_id: int) -> Optional[I_Nastepny_Wideo]:
+    async with tworca_sesji() as sesja:
+        zapytanie_film = select(Film).where(Film.id > aktualne_id).order_by(Film.id.asc())
+        wynik_film = await sesja.execute(zapytanie_film)
+        nastepny_film = wynik_film.scalars().first()
+
+        if not nastepny_film:
+            zapytanie_film_pierwszy = select(Film).order_by(Film.id.asc())
+            wynik_film_pierwszy = await sesja.execute(zapytanie_film_pierwszy)
+            nastepny_film = wynik_film_pierwszy.scalars().first()
+
+        if not nastepny_film:
+            return None
+
+        czas = await pobierz_czas_wideo(id_uzytkownika, nastepny_film.id)
+
+        return I_Nastepny_Wideo(
+            id=nastepny_film.id,
+            sciezka_pliku=nastepny_film.sciezka_pliku,
+            zapisany_czas=czas
+        )
+
+
+async def pobierz_nastepny_odcinek(id_uzytkownika: int, serial_id: int, numer_sezonu: int, numer_odcinka: int) -> \
+Optional[I_Nastepny_Wideo]:
+    async with tworca_sesji() as sesja:
+        zapytanie_odcinek = select(Odcinek).where(
+            Odcinek.serial_id == serial_id,
+            Odcinek.numer_sezonu == numer_sezonu,
+            Odcinek.numer_odcinka > numer_odcinka
+        ).order_by(Odcinek.numer_odcinka.asc())
+
+        wynik_odcinek = await sesja.execute(zapytanie_odcinek)
+        nastepny = wynik_odcinek.scalars().first()
+
+        if not nastepny:
+            zapytanie_nowy_sezon = select(Odcinek).where(
+                Odcinek.serial_id == serial_id,
+                Odcinek.numer_sezonu > numer_sezonu
+            ).order_by(Odcinek.numer_sezonu.asc(), Odcinek.numer_odcinka.asc())
+
+            wynik_nowy_sezon = await sesja.execute(zapytanie_nowy_sezon)
+            nastepny = wynik_nowy_sezon.scalars().first()
+
+        if not nastepny:
+            return None
+
+        czas = await pobierz_czas_wideo(id_uzytkownika, serial_id, nastepny.id)
+
+        return I_Nastepny_Wideo(
+            id=serial_id,
+            sciezka_pliku=nastepny.sciezka_pliku,
+            odcinek_id=nastepny.id,
+            numer_sezonu=nastepny.numer_sezonu,
+            numer_odcinka=nastepny.numer_odcinka,
+            zapisany_czas=czas
+        )
 
 async def pobierz_czas_wideo(id_uzytkownika: int, media_id: int, odcinek_id: Optional[int] = None) -> float:
     async with tworca_sesji() as sesja:

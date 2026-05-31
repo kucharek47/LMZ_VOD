@@ -8,9 +8,9 @@ from API_Router.check import sprawdz_token
 from API_Router.redis_DB import baza_redis
 from API_Router.request_DB import (
     pobierz_ostatnio_ogladane, pobierz_filmy, pobierz_seriale,
-    pobierz_kategorie, pobierz_sciezke_wideo
+    pobierz_kategorie, pobierz_sciezke_wideo, pobierz_nastepny_film, pobierz_nastepny_odcinek
 )
-from API_Router.interfaces import I_Ostatnio_Ogladane
+from API_Router.interfaces import I_Ostatnio_Ogladane, I_Nastepny_Wideo
 from typing import List, Optional
 import aiofiles
 
@@ -128,5 +128,28 @@ async def kategoria_list(dane_uzytkownika: dict = Depends(sprawdz_token)):
         await baza_redis.setex(klucz_cache, 3600, json.dumps(jsonable_encoder(wynik)))
     except Exception:
         pass
+
+    return wynik
+
+
+@router.get("/nastepny/film/{aktualne_id}", response_model=I_Nastepny_Wideo)
+async def nastepny_film(aktualne_id: int, dane_uzytkownika: dict = Depends(sprawdz_token)):
+    id_uzytkownika = int(dane_uzytkownika.get("sub"))
+    wynik = await pobierz_nastepny_film(id_uzytkownika, aktualne_id)
+
+    if not wynik:
+        raise HTTPException(status_code=404, detail="Brak kolejnego filmu")
+
+    return wynik
+
+
+@router.get("/nastepny/odcinek/{serial_id}/{numer_sezonu}/{numer_odcinka}", response_model=I_Nastepny_Wideo)
+async def nastepny_odcinek(serial_id: int, numer_sezonu: int, numer_odcinka: int,
+                           dane_uzytkownika: dict = Depends(sprawdz_token)):
+    id_uzytkownika = int(dane_uzytkownika.get("sub"))
+    wynik = await pobierz_nastepny_odcinek(id_uzytkownika, serial_id, numer_sezonu, numer_odcinka)
+
+    if not wynik:
+        raise HTTPException(status_code=404, detail="Brak kolejnego odcinka")
 
     return wynik
