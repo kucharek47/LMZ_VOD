@@ -70,6 +70,7 @@ class I_Ostatnio_Ogladane(BaseModel):
     data_aktualizacji: datetime
     numer_sezonu: Optional[int] = None
     numer_odcinka: Optional[int] = None
+    odcinek_id: Optional[int] = None
 class I_Postep(BaseModel):
     media_id: int
     odcinek_id: Optional[int] = None

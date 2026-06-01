@@ -206,7 +206,8 @@ async def pobierz_ostatnio_ogladane(id_uzytkownika: int, limit_wynikow: int = 10
                     obejrzany_czas=wpis.obejrzany_czas,
                     data_aktualizacji=wpis.data_aktualizacji,
                     numer_sezonu=wpis.odcinek.numer_sezonu if wpis.odcinek else None,
-                    numer_odcinka=wpis.odcinek.numer_odcinka if wpis.odcinek else None
+                    numer_odcinka=wpis.odcinek.numer_odcinka if wpis.odcinek else None,
+                    odcinek_id=wpis.odcinek_id
                 )
             )
         return lista_wynikow

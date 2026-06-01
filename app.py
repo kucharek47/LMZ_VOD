@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 import uvicorn
 import os
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from API_Router import user, wideo, progres
 from API_Router.redis_DB import baza_redis
 
@@ -27,9 +29,21 @@ app.add_middleware(
 )
 
 app.mount("/img", StaticFiles(directory="img"), name="img")
+
 app.include_router(user.router)
 app.include_router(wideo.router)
 app.include_router(progres.router)
+
+katalog_frontendu = Path("LMZ-VOD-front/browser").resolve()
+
+@app.get("/{pelna_sciezka:path}")
+async def obsluga_angulara(pelna_sciezka: str):
+    sciezka_pliku = (katalog_frontendu / pelna_sciezka).resolve()
+
+    if katalog_frontendu in sciezka_pliku.parents and sciezka_pliku.is_file():
+        return FileResponse(sciezka_pliku)
+
+    return FileResponse(katalog_frontendu / "index.html")
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
