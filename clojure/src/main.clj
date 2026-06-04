@@ -1,4 +1,4 @@
-(ns serwer
+(ns main
   (:require [ring.adapter.jetty :refer [run-jetty]]
             [cheshire.core :as json]))
 

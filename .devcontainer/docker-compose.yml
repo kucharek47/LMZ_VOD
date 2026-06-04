@@ -55,11 +55,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-clojure_engine:
+  clojure_engine:
     image: clojure:tools-deps-alpine
     working_dir: /app
     volumes:
-      - ./clojure:/app
+      - ../clojure:/app
     command: clojure -M -m main
     ports:
       - "3000:3000"
