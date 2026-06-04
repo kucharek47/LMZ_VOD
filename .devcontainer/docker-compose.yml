@@ -1,23 +1,4 @@
 services:
-  postgres_db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-vod_db}
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - siec_backend
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis_cache:
     image: redis:alpine
     ports:
@@ -32,25 +13,25 @@ services:
       retries: 5
 
   fastapi_app:
-    build: .
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
     ports:
       - "${APP_PORT:-13008}:13008"
     environment:
-      - POSTGRES_HOST=postgres_db
+      - POSTGRES_HOST=${POSTGRES_HOST:-host.docker.internal}
       - REDIS_URL=redis://redis_cache:6379/0
       - CLOJURE_URL=http://clojure_engine:3000/api/analyze
       - PATH_FILMS=/app/media/movies
       - PATH_SERIALS=/app/media/series
     env_file:
-      - .env
+      - ../.env
     volumes:
       - ${PATH_FILMS}:/app/media/movies
       - ${PATH_SERIALS}:/app/media/series
     networks:
       - siec_backend
     depends_on:
-      postgres_db:
-        condition: service_healthy
       redis_cache:
         condition: service_healthy
     restart: unless-stopped
