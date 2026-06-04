@@ -2,10 +2,11 @@ import os
 import getpass
 import bcrypt
 from argon2 import PasswordHasher
-import model_DB
-from model_DB import host_bazy
 import secrets
 import string
+from alembic.config import Config
+from alembic import command
+from dotenv import load_dotenv
 
 slownik_tekstow = {
     "en": {
@@ -115,7 +116,6 @@ slownik_tekstow = {
     }
 }
 
-
 def glowna_funkcja():
     wybor_jezyka = input(slownik_tekstow["en"]["lang_prompt"]).strip()
     mapa_jezykow = {"1": "en", "2": "pl", "3": "es", "4": "fr", "5": "zh"}
@@ -174,8 +174,9 @@ KEY_S={"".join(secrets.choice(string.ascii_letters + string.digits) for _ in ran
     print(teksty["done"])
 
     print("tworzenie bazy danych")
-    model_DB.create_tables()
-
+    load_dotenv(override=True)
+    konfiguracja_alembic = Config("alembic.ini")
+    command.upgrade(konfiguracja_alembic, "head")
 
 if __name__ == "__main__":
     glowna_funkcja()
