@@ -1,6 +1,8 @@
 import os
 import re
 import json
+
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.encoders import jsonable_encoder
@@ -153,3 +155,31 @@ async def nastepny_odcinek(serial_id: int, numer_sezonu: int, numer_odcinka: int
         raise HTTPException(status_code=404, detail="Brak kolejnego odcinka")
 
     return wynik
+
+
+@router.get("/propozycje")
+async def pobierz_propozycje_dla_uzytkownika():
+    url_clojure = os.getenv("CLOJURE_URL", "http://clojure_engine:3000/api/analyze")
+
+    historia_uzytkownika = [
+        {"id": 1, "tagi": ["akcja", "sci-fi"]},
+        {"id": 2, "tagi": ["dramat"]}
+    ]
+
+    wszystkie_filmy = [
+        {"id": 1, "tytul": "Film Sci-Fi 1", "tagi": ["akcja", "sci-fi"]},
+        {"id": 3, "tytul": "Nowy Ekshibicjonizm Akcji", "tagi": ["akcja", "thriller"]},
+        {"id": 4, "tytul": "Komedia Romantyczna", "tagi": ["komedia", "romans"]},
+        {"id": 5, "tytul": "Głęboki Dramat", "tagi": ["dramat"]}
+    ]
+
+    dane_wejsciowe = {
+        "historia": historia_uzytkownika,
+        "filmy": wszystkie_filmy
+    }
+
+    async with httpx.AsyncClient() as klient:
+        odpowiedz = await klient.post(url_clojure, json=dane_wejsciowe)
+        rekomendacje = odpowiedz.json()
+
+    return rekomendacje

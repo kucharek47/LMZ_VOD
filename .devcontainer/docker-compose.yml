@@ -39,6 +39,8 @@ services:
       - POSTGRES_HOST=postgres_db
       - REDIS_URL=redis://redis_cache:6379/0
       - CLOJURE_URL=http://clojure_engine:3000/api/analyze
+      - PATH_FILMS=/app/media/movies
+      - PATH_SERIALS=/app/media/series
     env_file:
       - .env
     volumes:
@@ -53,10 +55,12 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  clojure_engine:
+clojure_engine:
     image: clojure:tools-deps-alpine
     working_dir: /app
-    command: tail -f /dev/null
+    volumes:
+      - ./clojure:/app
+    command: clojure -M -m main
     ports:
       - "3000:3000"
     networks:

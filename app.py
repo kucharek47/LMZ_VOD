@@ -9,8 +9,8 @@ from fastapi.responses import FileResponse
 from API_Router import user, wideo, progres
 from API_Router.redis_DB import baza_redis
 
-path_film = os.getenv("PATH_FILMS", "demo/f")
-path_serials = os.getenv("PATH_SERIALS", "demo/s")
+sciezka_filmy = os.getenv("PATH_FILMS", "demo/f")
+sciezka_seriale = os.getenv("PATH_SERIALS", "demo/s")
 
 @asynccontextmanager
 async def cykl_zycia(aplikacja: FastAPI):
@@ -46,4 +46,4 @@ async def obsluga_angulara(pelna_sciezka: str):
     return FileResponse(katalog_frontendu / "index.html")
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=13008, reload=True)
