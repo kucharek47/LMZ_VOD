@@ -29,7 +29,7 @@ async def logowanie(dane_konta: I_Log, odpowiedz_serwera: Response):
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,
+        secure=True,
         samesite="lax",
         max_age=45 * 60
     )
@@ -37,7 +37,7 @@ async def logowanie(dane_konta: I_Log, odpowiedz_serwera: Response):
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,
+        secure=True,
         samesite="lax",
         max_age=7 * 24 * 60 * 60
     )
