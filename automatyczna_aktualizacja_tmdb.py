@@ -176,17 +176,15 @@ class tmdb:
         return output
 
 
-def struktura():
-    src_dir = "/mnt/dysk_VOD/filmy i seriale"
+def struktura(katalog_docelowy):
     today = datetime.now().strftime("%Y-%m-%d")
-
     os.makedirs("struktura", exist_ok=True)
     zip_name = f"struktura/struktura-{today}.zip"
 
     try:
         with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for root, dirs, files in os.walk(src_dir):
-                rel_path = os.path.relpath(root, src_dir)
+            for root, dirs, files in os.walk(katalog_docelowy):
+                rel_path = os.path.relpath(root, katalog_docelowy)
                 if rel_path != ".":
                     zipf.write(root, rel_path + '/')
 
@@ -270,8 +268,9 @@ async def auto_aktualizacja(seriali_path, filmow_path, access_token=None, api_ke
 
             odpowiedz = "t"
             if potwierdzenie:
-                odpowiedz = input(f"Pobrać dane dla {len(brakujace)} brakujących pozycji? [t/n]: ").lower().strip()
-
+                odpowiedz = await asyncio.to_thread(input,
+                                                    f"Pobrać dane dla {len(brakujace)} brakujących pozycji? [t/n]: ")
+                odpowiedz = odpowiedz.lower().strip()
             if odpowiedz == "t":
                 instancja_tmdb = tmdb(access_token=access_token, api_key=api_key)
 
@@ -340,7 +339,8 @@ async def auto_aktualizacja(seriali_path, filmow_path, access_token=None, api_ke
                 print(f"Dodano {dodane} pozycji do bazy danych")
 
                 print("Tworzenie archiwum struktury...")
-                struktura()
+                katalog_glowny = os.path.dirname(seriali_path) if seriali_path else "/mnt/dysk_VOD/filmy i seriale"
+                struktura(katalog_glowny)
 
                 await zrestartuj_redis()
 
@@ -356,8 +356,7 @@ if __name__ == "__main__":
     asyncio.run(auto_aktualizacja(
         os.getenv("PATH_SERIALS"),
         os.getenv("PATH_FILMS"),
-        "filmy",
-        access_token=None,
+        access_token=ACCESS_TOKEN,
         api_key=API_KEY,
         potwierdzenie=True
     ))
